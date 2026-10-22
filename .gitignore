@@ -1,9 +1,0 @@
-# Binários pesados e ficheiros locais (ficam só na pasta Nextcloud)
-*.7z
-*.pdf
-*.gif
-*.png
-*.lnk
-*.bak
-Backup Scripts/
-Data/[Ii]mages*/
