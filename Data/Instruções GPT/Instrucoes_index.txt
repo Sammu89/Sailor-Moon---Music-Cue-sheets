@@ -1,0 +1,106 @@
+Goal
+The purpose of this Python script is to take a raw text file, parse it into structured data, and save the parsed data as a JSON file. The JSON output organizes sections, headers, and data entries from the text file.
+
+Program Steps
+Step 1: User Inputs
+Prompt for JSON Filename
+
+The program asks the user for a name to use as the JSON filename and as the dataset name within the JSON structure.
+The file extension .json should not be included in the input.
+Prompt for Text File Path
+
+The program prompts for the full path of the text file to parse.
+If the user does not provide a path, the program defaults to C:\Users\Sammu\Desktop\Cues\season1.txt.
+Display User Information
+
+Before requesting input, the program explains:
+Headers are fixed as ["Μ-ΝΟ.", "Time", "内容", "収録CD"].
+Sections start with either 【 or &, and the name spans lines until reaching a line containing "TIME".
+Each data entry consists of four lines in the order of the headers.
+Step 2: Data Processing
+Read and Clean the Text File
+
+The program reads the text file and removes any empty lines, storing the non-empty lines for further processing.
+If the file cannot be found at the specified path, the program exits and prints an error message.
+Parse Sections
+
+Identifying Section Names
+
+Sections begin with lines that start with 【 or &.
+If the line starts with 【, it is kept as part of the section name.
+If it starts with &, the & symbol is removed from the name.
+Building Section Names
+
+The section name may span multiple lines.
+Lines are collected until a line with "TIME" is reached.
+The program discards the line immediately before the "TIME" line and concatenates the remaining lines with spaces to form the final section name.
+After reaching "TIME", the program skips the "TIME" line itself and the two lines that follow it.
+Processing Data Entries
+
+Each section’s data consists of multiple entries, each with four values corresponding to ["Μ-ΝΟ.", "Time", "内容", "収録CD"].
+For each entry, four lines are read, one for each header.
+The second value (Time field) is processed by the process_time_field function to handle specific formatting and OCR error correction (described below).
+If an entry does not have exactly four values, the program issues a warning and ignores the incomplete entry.
+Time Field Processing
+
+The program replaces specific symbols and addresses potential OCR errors in the Time field:
+Replace Prime Symbols: Converts ′ to ' and ″ to " and  ° to º.
+Handle OCR Errors: Replaces º and ° and " with nothing.
+Additional Conversions: Converts 半 to .5 and ' to "min".
+Numeric Check: If the result is purely numeric (integer or float), the program appends "sec" to the end of the field.
+After all entries are processed, the program does a final pass to replace any occurrences of "minmin" in the Time field with "sec".
+Output Feedback
+
+After processing each section, the program prints the section name and its data entries for user confirmation.
+Step 3: JSON Output Structure
+Build JSON Structure
+
+The program creates a JSON object with the following structure:
+
+json
+Copiar código
+{
+  "Dataset Name": {
+    "Headers": ["Μ-ΝΟ.", "Time", "内容", "収録CD"],
+    "Sections": {
+      "Section Name 1": [
+        ["header1_value", "header2_value", "header3_value", "header4_value"],
+        ["header1_value", "header2_value", "header3_value", "header4_value"],
+        ...
+      ],
+      "Section Name 2": [
+        ...
+      ],
+      ...
+    }
+  }
+}
+"Dataset Name": The user-defined name for the dataset.
+"Headers": A list of the fixed headers.
+"Sections": An object where each key is a section name, and each value is an array of data entries.
+Save JSON File
+
+The program writes the JSON object to a file named after the user-provided filename, with the .json extension.
+Display Completion Message
+
+The program confirms successful JSON creation and prompts the user to press any key to exit.
+Example
+Given raw text input with sections and data entries, the output JSON should look like the following format, with properly structured headers and sections:
+
+json
+Copiar código
+{
+  "Example Dataset": {
+    "Headers": ["Μ-ΝΟ.", "Time", "内容", "収録CD"],
+    "Sections": {
+      "【A】Section Description": [
+        ["A-1", "1'24\"", "Description", "1-57-1"],
+        ["A-2", "1'30\"", "Another description", "1-57-2"]
+      ],
+      "B Section Description": [
+        ["B-1", "1'44\"", "Description", "2-23-5"],
+        ["B-2", "1'38.5sec", "Description", "2-23-4"]
+      ]
+    }
+  }
+}

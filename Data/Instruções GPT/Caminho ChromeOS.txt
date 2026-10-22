@@ -1,0 +1,3 @@
+cd /mnt/chromeos/MyFiles/Scripts/Cues
+
+python3 ParsingEpisodes.py

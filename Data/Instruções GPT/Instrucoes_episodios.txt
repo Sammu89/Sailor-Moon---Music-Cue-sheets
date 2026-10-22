@@ -1,0 +1,677 @@
+Prompt
+
+You are tasked with creating a Python script that processes structured data from a raw text file that has episode info, and outputs it as a JSON file. I will handle the input-loading and preprocessing, so you do not need to generate that logic.
+
+PYTHON Code already written: 
+***** Start ***
+# Existing imports and initial setup
+import re 
+import os 
+import json 
+
+# Prompt user for JSON filename 
+json_filename = input("Enter the JSON filename (without .json extension): ").strip() + ".json"
+
+# Get the current directory 
+current_directory = os.getcwd()
+
+# List all .txt files in the current directory 
+txt_files = [f for f in os.listdir(current_directory) if f.endswith('.txt')]
+
+# If there are no .txt files, prompt the user for the file path 
+if not txt_files:
+    text_file_path = input("Enter the full path of the text file (default: 'C:\\Users\\Sammu\\Desktop\\Cues\\season1.txt'): ").strip()
+else:
+    print("Please select the input text file:")
+    for i, file in enumerate(txt_files, 1):
+        print(f"{i}. {file}")
+    while True:
+        try:
+            choice = int(input("Enter the number of your choice: "))
+            if 1 <= choice <= len(txt_files):
+                break
+            else:
+                print("Invalid choice. Please enter a number between 1 and", len(txt_files))
+        except ValueError:
+            print("Invalid input. Please enter a number.")
+    text_file_path = os.path.join(current_directory, txt_files[choice - 1])
+
+# Define JSON structure
+json_data = {
+    "global_headers": {"A": "A パート", "B": "B パート"},
+    "global_subheaders": ["M", "曲の内容", "クレジット", "秒"],
+    "episodes": []
+}
+
+# Helper function to process time field for OCR error correction
+def process_time_field(time_str):
+    time_str = time_str.replace("′", "min").replace("″", "sec").replace("°", "º")
+    time_str = time_str.replace("半", ".5").replace("'", "min").replace("minmin", "min")
+    if re.match(r"^\d+(\.\d+)?$", time_str):
+        time_str += "sec"
+    return time_str
+
+# Read and clean text file 
+try:
+    with open(text_file_path, 'r', encoding='utf-8') as file:
+        lines = [line.strip() for line in file if line.strip()]
+except FileNotFoundError:
+    print(f"Error: The file at '{text_file_path}' could not be found.")
+    exit(1)
+
+# Initial Cleaning
+cleaned_lines = [line for line in lines if not re.match(r"^(M|曲の内容|クレジット|秒)$", line)]
+print(f"Initial cleaning done. Remaining lines: {len(cleaned_lines)}")
+
+# Identify episodes using "第+number" pattern
+episodes_data = {}
+episode_pattern = re.compile(r"第(\d{1,3})話")  # Matches "第198話", etc.
+current_episode = None
+current_episode_lines = []
+
+for line in cleaned_lines:
+    match = episode_pattern.match(line)
+    if match:
+        # If we encounter a new episode, save the previous episode's data
+        if current_episode is not None:
+            episodes_data[current_episode] = current_episode_lines
+            print(f"Episode {current_episode} data found and stored.")
+        
+        # Start a new episode
+        episode_number = match.group(1)
+        current_episode = episode_number[:3]  # Retain only the first three digits if over three
+        current_episode_lines = []
+    else:
+        # Accumulate lines for the current episode
+        current_episode_lines.append(line)
+
+# Save the last episode's data if any
+if current_episode is not None:
+    episodes_data[current_episode] = current_episode_lines
+    print(f"Episode {current_episode} data found and stored.")
+
+# Divide each episode into parts A and B
+episodes_parts = {}
+for episode, data in episodes_data.items():
+    part_a, part_b = [], []
+    in_part_a = in_part_b = False
+    
+    for line in data:
+        # Detect start of Part A
+        if line.startswith("A"):
+            in_part_a, in_part_b = True, False
+            continue
+        # Detect start of Part B
+        elif line.startswith("B"):
+            in_part_a, in_part_b = False, True
+            continue
+        # Append lines to part A or part B based on current part flags
+        if in_part_a:
+            part_a.append(line)
+        elif in_part_b:
+            part_b.append(line)
+
+    # Check if both parts A and B were found
+    if not part_a:
+        raise ValueError(f"Error: Part A is missing in Episode {episode}.")
+    if not part_b:
+        raise ValueError(f"Error: Part B is missing in Episode {episode}.")
+
+    # Store the parts in the episodes_parts dictionary
+    episodes_parts[episode] = {"A": part_a, "B": part_b}
+
+# Process parts and divide into subarrays based on comparator logic
+for episode, parts in episodes_parts.items():
+    for part_key, part_data in parts.items():
+        output = []
+        comparator = None
+        temp_array = []
+
+        for line in part_data:
+            # Find the first integer and set it as the comparator
+            if comparator is None:
+                match = re.match(r"(\d+)", line)
+                if match:
+                    comparator = int(match.group(1))
+                    temp_array.append(line)
+                else:
+                    temp_array.append(line)  # Append non-integer values before finding comparator
+            else:
+                # Check if line contains an integer to compare with the comparator
+                match = re.match(r"(\d+)", line)
+                if match:
+                    current_int = int(match.group(1))
+                    # Split the array if we find comparator or comparator + 1
+                    if current_int == comparator or current_int == comparator + 1:
+                        output.append(temp_array)  # Append current array to output
+                        temp_array = [line]  # Start a new array with the current line
+                        comparator = current_int  # Update comparator
+                    else:
+                        temp_array.append(line)  # Continue accumulating data
+                else:
+                    temp_array.append(line)  # Accumulate non-integer values
+
+        # Append the remaining part if any
+        if temp_array:
+            output.append(temp_array)
+
+        # Debug output
+        print(f"Episode {episode} Part {part_key} split arrays:")
+        for arr in output:
+            print(arr)
+input("Press Enter to continue...")
+
+# Process each episode's part arrays
+for episode, parts in episodes_parts.items():
+    episode_data = {"number": int(episode), "parts": {"A": [], "B": []}}
+    
+    for part_key, part_data in parts.items():
+        output = []
+        comparator = None
+        temp_array = []
+
+        for line in part_data:
+            # Find the first integer and set it as the comparator
+            if comparator is None:
+                match = re.match(r"(\d+)", line)
+                if match:
+                    comparator = int(match.group(1))
+                    temp_array.append(line)
+                else:
+                    temp_array.append(line)  # Append non-integer values before finding comparator
+            else:
+                # Check if line contains an integer to compare with the comparator
+                match = re.match(r"(\d+)", line)
+                if match:
+                    current_int = int(match.group(1))
+                    # Split the array if we find comparator or comparator + 1
+                    if current_int == comparator or current_int == comparator + 1:
+                        output.append(temp_array)  # Append current array to output
+                        temp_array = [line]  # Start a new array with the current line
+                        comparator = current_int  # Update comparator
+                    else:
+                        temp_array.append(line)  # Continue accumulating data
+                else:
+                    temp_array.append(line)  # Accumulate non-integer values
+
+        # Append the remaining part if any
+        if temp_array:
+            output.append(temp_array)
+
+        # Ensure all arrays in the part have 4 fields
+        for arr in output:
+            while len(arr) < 4:
+                arr.append(" — ")  # Add empty fields if necessary to reach at least 4 fields
+            print(arr)  # Debugging: Print standardized arrays for each part
+
+            # Add the standardized array to the episode part
+            episode_data["parts"][part_key].append(arr)
+	    input("Press continue to continue...")
+            
+
+///*** Continue code from here and DO NOT MODIFY code before and after this***//
+
+
+
+
+
+    # Add the episode data to JSON structure
+    json_data["episodes"].append(episode_data)
+
+# Write JSON data to file
+json_filepath = os.path.join(current_directory, json_filename)
+with open(json_filepath, 'w', encoding='utf-8') as json_file:
+    json.dump(json_data, json_file, ensure_ascii=False, indent=2)
+
+print(f"JSON file '{json_filename}' created successfully at {json_filepath}")
+input("Press Enter to exit...")
+
+***** END ***
+
+
+
+Steps and Detailed Instructions
+
+1. Example of output at this point:
+
+['9', 'アイキャッチ (M)', 'C-2', '8″半']
+['10', 'コミカル', 'E-2', '50"']
+['11', '不気味', 'E-21+J-22', '39"']
+['12', '不思議な感じ', 'F-10', '58"']
+['13', '静かに使命感', 'J-10', '12"']
+['14', '変身', 'H-1', '38"']
+['15', '妖魔・事件', 'G-10', '34"']
+['16', 'セーラー戦士', 'G-11']
+['16', 'dsdsds戦士','', 'G-11']
+['17','Oi', '', '53"']
+['18', 'タキシード仮面', '1-1', '13"']
+['19', 'ムーンティアラアクション', 'H-4', '32"']
+['20', 'ENDING', 'D-2', '47']
+
+
+2. Check all the arrays for empty fields. When na empty field is detected, it should be moved to the second position. No value should be deleted, only empty fields should move  to the second position until there is no more empty fields on that array and move to next array.
+
+3. After logic 2 Replace all empty fields by " — ". Output the result in a print statement, and Make user press Enter to continue
+
+4. Processing Time Fields: After processing the arrays, utilize the process_time_field function (which is already coded) to process the last value of each array.
+
+5.JSON Output Requirements
+
+ The JSON output format should follow this example structure:
+
+
+Example JSON Structure:
+
+
+{
+
+  "global_headers": { "A": "A パート", "B": "B パート" },
+
+  "global_subheaders": ["M", "曲の内容 ", "クレジット ", "秒 "],
+
+  "episodes": [
+
+    {
+
+      "number": 1,
+
+      "parts": {
+
+        "A": [
+
+             ["Index", "Content", "Track", 35],
+
+             ["Index", "Content", "Track", 56],
+
+        ],
+
+        "B": [
+
+           ["Index", "Content", "Track", 120],
+
+           ["Index", "Content", "Track", 128],
+
+        ]
+
+      }
+
+    },
+
+    {
+
+      "number": 2,
+
+   "parts": {
+
+        "A": [
+
+             ["Index", "Content", "Track", 35],
+
+             ["Index", "Content", "Track", 56],
+
+        ],
+
+        "B": [
+
+           ["Index", "Content", "Track", 120],
+
+           ["Index", "Content", "Track", 128],
+
+
+        ]
+
+      }
+
+    }
+
+  ]
+
+}
+
+
+
+
+
+
+
+
+
+Example of raw data that will be used:
+
+"第198話 消えゆく星々! ウラヌス達の最期
+
+Aパート
+
+M
+
+曲の内容
+
+クレジット
+
+秒
+
+1
+
+アパン (M)
+
+M-655
+
+18″半
+
+2
+
+サブタイトル(M)
+
+M-608
+
+8"
+
+3
+
+悲しみ
+
+M-114
+
+1′13″
+
+4
+
+安心感喜び
+
+E-5
+
+43″半
+
+5
+
+辛い思い対立へ
+
+M-312
+
+1'08"
+
+6
+
+ギャラクシア 悠然と
+
+M-644
+
+29″半
+
+6
+
+M-613
+
+35
+
+7
+
+アイキャッチ (M)
+
+M-609
+
+10"
+
+Bバート
+
+M
+
+曲の内容
+
+クレジット
+
+秒
+
+8
+
+アイキャッチ (M)
+
+M-609
+
+10"
+
+9
+
+絶望
+
+M-126
+
+1'19"
+
+10
+
+ウラヌス・ネプチューンの勇気
+
+M-307
+
+20″半
+
+11
+
+静かに消えてゆく ウラヌ ス・ネプチューン
+
+
+M-602
+
+2"09"
+
+
+12
+
+闘い テンポ有り
+
+M-651
+
+28″半
+
+13
+
+ムーンのやさしさ・
+
+M-629
+
+1'47"
+
+14
+
+伝説
+
+M-650
+
+1'05"
+
+
+第1話
+
+泣き虫うさぎの華麗なる変身
+
+Aパート
+
+M
+
+曲の内容
+
+クレジット
+
+秒
+
+1
+
+サブタイトル(M)
+
+C-lb
+
+10"
+
+2
+
+明るく
+
+G-1
+
+29"
+
+3
+
+スローコミカル
+
+E-2
+
+1'20"
+
+4
+
+軽く明るく
+
+F-6
+
+29"
+
+5
+
+クインベリル
+
+1-2
+
+1′05″半
+
+6
+
+怪しく
+
+J-16
+
+32"
+
+6
+
+F-14
+
+34"
+
+7
+
+コミカル
+
+J-6
+
+31"
+
+8
+
+アイキャッチ (M)
+
+C-2
+
+Bバート
+
+M
+
+曲の内容
+
+クレジット
+
+秒
+
+9
+
+アイキャッチ (M)
+
+C-2
+
+8″半
+
+10
+
+コミカル
+
+E-2
+
+50"
+
+11
+
+不気味
+
+E-21+J-22
+
+39"
+
+12
+
+不思議な感じ
+
+F-10
+
+58"
+
+13
+
+静かに使命感
+
+J-10
+
+12"
+
+14
+
+変身
+
+H-1
+
+38"
+
+15
+
+妖魔・事件
+
+G-10
+
+34"
+
+16
+
+セーラー戦士
+
+G-11
+
+16"
+
+17
+
+闘い
+
+H-2
+
+53"
+
+18
+
+タキシード仮面
+
+1-1
+
+13"
+
+19
+
+ムーンティアラアクション
+
+H-4
+
+32"
+
+20
+
+ENDING
+
+D-2
+
+47"
+
+
+
+
+Can you write the rest code in python to achieve everything i explained?
+Compare each section of code you generated with each of my requested, to make sure you didnt skip anything.
+Make sure you connect your new code to use the code i wrote.
