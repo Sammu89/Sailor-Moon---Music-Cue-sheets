@@ -1,7 +1,7 @@
 # MusicSheets — Cue sheets de Sailor Moon (anime de 1992–97)
 
 Este ficheiro tem duas partes: a **Parte 1** explica o projeto a uma pessoa; a **Parte 2** é o manual técnico para um agente de IA.
-Local: `Documents\Código\sm-cue-sheets` (repo privado `Sammu89/sm-cue-sheets`). **Este repositório Git é a única fonte de verdade.**
+Local: `Documents\Código\Sailor Moon - Music sheets` (repo privado `Sammu89/sm-cue-sheets`). **Este repositório Git é a única fonte de verdade.**
 
 ---
 
@@ -55,6 +55,8 @@ Qualquer texto que seja `string_N` (ou `Is_N` nos índices, `s_`/`im_` em fichei
 **Índices `Cues_Index_*.json`**: `{"id": "...", "string_S01": {"Headers": [...], "Sections": {"string_X": [[M-NO, tempo, ref_nome, CD], ...]}}}`.
 
 `Gerar HTML final.py` identifica os ficheiros pelo campo `id` (`episodes-episodes`, `strings-dictionary`), não pelo nome — manter esses `id`.
+
+> O passo a passo detalhado (com avisos, bugs conhecidos e receitas) está no [`README.md`](README.md).
 
 ### Pipeline (ordem de execução, tudo interativo, `input()`)
 
