@@ -1,7 +1,7 @@
 # MusicSheets — Cue sheets de Sailor Moon (anime de 1992–97)
 
 Este ficheiro tem duas partes: a **Parte 1** explica o projeto a uma pessoa; a **Parte 2** é o manual técnico para um agente de IA.
-Cópia no Git: `Documents\Código\sm-cue-sheets` (repo `Sammu89/sm-cue-sheets`). **A pasta Nextcloud é a fonte de verdade.**
+Local: `Documents\Código\sm-cue-sheets` (repo privado `Sammu89/sm-cue-sheets`). **Este repositório Git é a única fonte de verdade.**
 
 ---
 
@@ -97,4 +97,4 @@ MusicSheets/
 
 ### Sincronização com o Git
 
-A fonte de verdade é esta pasta (Nextcloud). A cópia em `Documents\Código\sm-cue-sheets` é derivada: atualizar a partir daqui, nunca o contrário. Não se versionam binários pesados nem o `.7z` de backup; ver `.gitignore` do repo.
+O repositório contém tudo, incluindo imagens das folhas, PDFs, GIFs e o `.7z` de backup (~40 MB). Já não existe cópia no Nextcloud (a pasta `MusicSheets` foi apagada depois de verificada a igualdade ficheiro a ficheiro). Fazer commit e push de qualquer alteração; não manter cópias paralelas.

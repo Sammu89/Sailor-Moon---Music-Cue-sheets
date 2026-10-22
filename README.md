@@ -49,4 +49,4 @@ Produz `HTML/S0X_<idioma>.html` e um log `S0X.log` por temporada.
 
 ## Sincronização
 
-A fonte de verdade é a pasta Nextcloud `Projetos/SMPT/MusicSheets`; este repositório é uma cópia derivada, sem binários pesados (PDF, imagens, `.7z`, ver `.gitignore`).
+Este repositório é a única fonte de verdade e contém tudo, incluindo as imagens das folhas digitalizadas, PDFs e o backup `.7z`. Não existem cópias noutros locais.
